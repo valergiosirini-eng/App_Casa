@@ -6,7 +6,7 @@ import TabBar from "@/components/TabBar";
 import Icon, { FamilyBox } from "@/components/Icon";
 import { useCycle, refreshBadge } from "@/lib/hooks/useCycle";
 import { daysLeft, eur, monthName, pct } from "@/lib/format";
-import { AUTOMATIC_KINDS } from "@/lib/types";
+import { AUTOMATIC_KINDS, budgetOf } from "@/lib/types";
 
 export default function Page() {
   return <AuthGate>{(s) => <Inicio userId={s.user.id} />}</AuthGate>;
@@ -23,12 +23,15 @@ function Inicio({ userId }: { userId: string }) {
   const perDay = libre ? Math.max(0, libre.available) / Math.max(left, 1) : 0;
   const attention = d.mine.filter((s) => !AUTOMATIC_KINDS.includes(s.kind) && s.kind !== "free");
   const automatic = d.mine.filter((s) => AUTOMATIC_KINDS.includes(s.kind));
-  const casaTotal = d.casa.reduce((a, s) => a + s.allocated + s.carried_in, 0);
+  const casaTotal = d.casa.reduce((a, s) => a + budgetOf(s), 0);
+  const over = [...d.mine, ...d.casa].filter((s) => s.available < 0).sort((a, b) => a.available - b.available)[0];
   const casaLeft = d.casa.reduce((a, s) => a + s.available, 0);
 
   // Un solo aviso a la vez, por prioridad
   let notice: { href: string; title: string; sub: string } | null = null;
   if (d.needsReparto) notice = { href: "/reparto", title: "Toca repartir la nómina", sub: "Antes de gastar nada: son 30 segundos" };
+  else if (over)
+    notice = { href: `/compensar?e=${over.envelope_id}`, title: `Te has pasado ${eur(-over.available)} en ${over.name}`, sub: "Toca para compensarlo con un sobre que vaya holgado" };
   else if (d.pendingTransfers.length)
     notice = {
       href: "/transferencias",
@@ -64,7 +67,7 @@ function Inicio({ userId }: { userId: string }) {
           <section aria-labelledby="t-sobres">
             <h2 id="t-sobres" style={{ marginBottom: 8 }}>Tus sobres</h2>
             {attention.map((s) => {
-              const total = s.allocated + s.carried_in;
+              const total = budgetOf(s);
               return (
                 <div className="row" key={s.envelope_id}>
                   <FamilyBox family={s.family} color={s.color} tint={s.tint} />
@@ -72,7 +75,7 @@ function Inicio({ userId }: { userId: string }) {
                     <div className="top"><span className="name">{s.name}</span><span className="amt num">{eur(s.available)}</span></div>
                     <div className="bar"><span style={{ width: pct(s.available, total), background: s.color }} /></div>
                     <span className="small">
-                      de {eur(total)}{s.committed > 0 ? ` · ${eur(s.committed)} reservados` : ""}{s.available < 0 ? " · te has pasado: sale del Libre" : ""}
+                      de {eur(total)}{s.committed > 0 ? ` · ${eur(s.committed)} reservados` : ""}{s.available < 0 ? " · te has pasado" : ""}
                     </span>
                   </div>
                 </div>
@@ -92,7 +95,7 @@ function Inicio({ userId }: { userId: string }) {
         )}
 
         {d.casa.length > 0 && (
-          <Link href="/historial?ver=casa" className="notice" style={{ border: "none", background: "#DBEAFE" }}>
+          <Link href="/casa" className="notice" style={{ border: "none", background: "#DBEAFE" }}>
             <Icon name="casa" color="#1D4ED8" size={26} />
             <span style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
               <span className="top" style={{ display: "flex", justifyContent: "space-between" }}>

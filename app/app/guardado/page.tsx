@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AuthGate from "@/components/AuthGate";
 import Icon from "@/components/Icon";
+import Compensar from "@/components/Compensar";
 import { supabase } from "@/lib/supabase";
 import { refreshBadge } from "@/lib/hooks/useCycle";
 import { daysLeft, eur, pct } from "@/lib/format";
@@ -21,6 +22,7 @@ function Guardado() {
   const [st, setSt] = useState<EnvelopeStatus | null>(null);
   const [endsOn, setEndsOn] = useState<string | null>(null);
 
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     if (!id) return;
     (async () => {
@@ -28,12 +30,12 @@ function Guardado() {
       if (!t) return;
       setTx({ ...t, amount: Number(t.amount) });
       const { data: s } = await supabase.from("v_envelope_status").select("*").eq("cycle_id", t.cycle_id).eq("envelope_id", t.envelope_id).single();
-      if (s) setSt({ ...(s as EnvelopeStatus), available: Number(s.available), allocated: Number(s.allocated), carried_in: Number(s.carried_in) });
+      if (s) setSt({ ...(s as EnvelopeStatus), available: Number(s.available), allocated: Number(s.allocated), carried_in: Number(s.carried_in), moved: Number(s.moved ?? 0), spent: Number(s.spent) });
       const { data: c } = await supabase.from("cycles").select("ends_on").eq("id", t.cycle_id).single();
       setEndsOn(c?.ends_on ?? null);
       refreshBadge();
     })();
-  }, [id]);
+  }, [id, tick]);
 
   async function undo() {
     if (!id) return;
@@ -43,7 +45,7 @@ function Guardado() {
   }
 
   if (!tx || !st) return <main className="center muted">Guardando…</main>;
-  const total = st.allocated + st.carried_in;
+  const total = st.allocated + st.carried_in + st.moved;
   const perDay = endsOn ? Math.max(0, st.available) / daysLeft(endsOn) : 0;
 
   return (
@@ -63,6 +65,9 @@ function Guardado() {
           <div className="bar" style={{ height: 12 }}><span style={{ width: pct(st.available, total), background: st.color }} /></div>
           <span className="small" style={{ color: "#374151" }}>de {eur(total)}{endsOn ? ` · unos ${eur(Math.floor(perDay * 100) / 100)} al día` : ""}</span>
         </div>
+        {st.available < 0 && (
+          <Compensar envelopeId={st.envelope_id} name={st.name} deficit={-st.available} onDone={() => setTick((t) => t + 1)} />
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <button className="secondary" type="button" onClick={undo}><Icon name="undo" size={22} />Deshacer</button>
           <Link className="primary" href="/">Listo</Link>

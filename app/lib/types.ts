@@ -11,12 +11,18 @@ export type EnvelopeStatus = {
   tint: string;
   kind: "fixed" | "budget" | "sinking" | "event" | "savings" | "cash" | "contribution" | "free";
   owner_id: string | null;
+  account_id: string;
   allocated: number;
   carried_in: number;
   spent: number;
   committed: number;
   available: number;
+  moved: number;
 };
+
+// Presupuesto vigente del sobre: asignado + arrastrado + traspasos
+export const budgetOf = (s: Pick<EnvelopeStatus, "allocated" | "carried_in" | "moved">) =>
+  Number(s.allocated) + Number(s.carried_in) + Number(s.moved ?? 0);
 
 export type Cycle = {
   id: string;
@@ -26,6 +32,7 @@ export type Cycle = {
   ends_on: string;
   status: "distributed" | "closed";
   income: number | null;
+  credit_in?: number;
 };
 
 // Sobres que ya están apartados y no piden atención en el día a día

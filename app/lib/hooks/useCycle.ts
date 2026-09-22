@@ -40,7 +40,7 @@ export function useCycle(userId: string) {
       : { data: [] as EnvelopeStatus[] };
     const all = ((status ?? []) as EnvelopeStatus[]).map((s) => ({
       ...s, allocated: Number(s.allocated), carried_in: Number(s.carried_in), spent: Number(s.spent),
-      committed: Number(s.committed), available: Number(s.available),
+      committed: Number(s.committed), available: Number(s.available), moved: Number(s.moved ?? 0),
     }));
 
     let pendingTransfers: Data["pendingTransfers"] = [];
