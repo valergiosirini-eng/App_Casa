@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { isoDay, periodFor } from "@/lib/format";
+import { isoDay } from "@/lib/format";
 import type { Cycle, EnvelopeStatus } from "@/lib/types";
 
 type Data = {
@@ -49,10 +49,9 @@ export function useCycle(userId: string) {
       pendingTransfers = (t ?? []).map((x: any) => ({ id: x.id, amount: Number(x.amount), account: x.accounts?.name ?? "" }));
     }
 
+    // Toca repartir cuando no hay ciclo o el actual ya terminó (acaba la víspera del cobro)
     const today = isoDay();
-    const day = Number(today.slice(8, 10));
-    const payday = me?.payday_from ?? 27;
-    const needsReparto = !cycle || (cycle.period < periodFor(today) && day >= payday);
+    const needsReparto = !cycle || today > cycle.ends_on;
 
     setData({
       me: me as Data["me"], cycle, shared,
